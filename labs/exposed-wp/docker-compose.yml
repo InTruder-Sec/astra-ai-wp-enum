@@ -1,0 +1,70 @@
+# Local, intentionally-vulnerable WordPress target for testing the enumeration
+# tool. Exposes every enumeration vector cleanly (REST users, author archives,
+# user sitemap, oEmbed, feeds, XML-RPC) plus a weak admin password for the
+# brute-force demo.
+#
+# ⚠️  Intentionally insecure. Bind to localhost only. Never expose to a network.
+#
+#   docker compose up -d        # start (seeds automatically on first run)
+#   docker compose down -v      # stop and wipe
+#
+# Target URL once up: http://localhost:8090
+
+services:
+  db:
+    image: mariadb:10.11
+    restart: unless-stopped
+    environment:
+      MARIADB_DATABASE: wordpress
+      MARIADB_USER: wordpress
+      MARIADB_PASSWORD: wordpress
+      MARIADB_ROOT_PASSWORD: rootpass
+    volumes:
+      - db:/var/lib/mysql
+    healthcheck:
+      # Gate dependents on a genuinely-ready DB to avoid startup races.
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  wordpress:
+    image: wordpress:6.4-apache
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:8090:80"
+    environment:
+      WORDPRESS_DB_HOST: db:3306
+      WORDPRESS_DB_USER: wordpress
+      WORDPRESS_DB_PASSWORD: wordpress
+      WORDPRESS_DB_NAME: wordpress
+    volumes:
+      - wp:/var/www/html
+
+  # One-shot container: waits for the DB + wp-config, then provisions the site
+  # (users, posts, permalinks) via the seed script. Exits when done.
+  wp-cli:
+    image: wordpress:cli-php8.2
+    depends_on:
+      db:
+        condition: service_healthy
+      wordpress:
+        condition: service_started
+    environment:
+      WORDPRESS_DB_HOST: db:3306
+      WORDPRESS_DB_USER: wordpress
+      WORDPRESS_DB_PASSWORD: wordpress
+      WORDPRESS_DB_NAME: wordpress
+    # Match the apache image's www-data uid so shared files stay writable.
+    user: "33:33"
+    volumes:
+      - wp:/var/www/html
+      - ./seed.sh:/usr/local/bin/seed.sh:ro
+    entrypoint: ["sh", "/usr/local/bin/seed.sh"]
+
+volumes:
+  db: {}
+  wp: {}
