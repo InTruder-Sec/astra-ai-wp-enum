@@ -46,7 +46,7 @@ export function resolveAiConfig(env: NodeJS.ProcessEnv = process.env): AiConfig 
     return {
       provider,
       apiKey: env.ANTHROPIC_API_KEY,
-      model: env.ANTHROPIC_MODEL?.trim() || "claude-3-5-haiku-latest",
+      model: env.ANTHROPIC_MODEL?.trim() || "claude-haiku-5-5",
     };
   }
   return { provider: "none" };

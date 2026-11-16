@@ -6,7 +6,7 @@ import { buildModel } from "./providers.js";
 import { buildPlan } from "./planner.js";
 import { buildSummary } from "./summary.js";
 import type { AppConfig } from "../config.js";
-import type { BruteForceResult, DiscoveredUser, EnumerationPlan, ScanReport } from "../types.js";
+import type { BruteForceResult, DiscoveredUser, ScanReport } from "../types.js";
 
 export async function runScan(config: AppConfig): Promise<ScanReport> {
   const http = new HttpClient({
@@ -36,7 +36,7 @@ export async function runScan(config: AppConfig): Promise<ScanReport> {
   }
   const users = [...discovered.values()];
 
-  const bruteForce = await maybeBruteForce(http, config, plan, users);
+  const bruteForce = await maybeBruteForce(http, config, users);
   const summary = await buildSummary(model, { recon, plan, users, bruteForce });
   const finishedAt = new Date().toISOString();
 
@@ -70,11 +70,10 @@ function mergeUser(map: Map<string, DiscoveredUser>, user: DiscoveredUser): void
 async function maybeBruteForce(
   http: HttpClient,
   config: AppConfig,
-  plan: EnumerationPlan,
   users: DiscoveredUser[],
 ): Promise<BruteForceResult> {
-  if (!config.bruteForce || !plan.bruteForce) {
-    return { attempted: false, triedCount: 0, detail: "Brute-force not run (disabled or not warranted)." };
+  if (!config.bruteForce) {
+    return { attempted: false, triedCount: 0, detail: "Brute-force not run (pass --brute to enable)." };
   }
   const admin = pickAdmin(users);
   if (!admin) {
