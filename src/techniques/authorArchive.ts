@@ -18,7 +18,7 @@ export const authorArchiveTechnique: Technique = {
   id: ID,
   title: "Author archive routing",
   description:
-    "Probes /?author=N and reads the /author/<slug>/ redirect (or page) to recover login names. Works best with pretty permalinks.",
+    "Probes /?author=N and recovers login slugs from the redirect Location or the page body class. Effective on both pretty and plain permalinks.",
 
   isRelevant(recon: ReconResult): boolean {
     return recon.isWordPress;
