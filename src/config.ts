@@ -14,6 +14,7 @@ export interface AppConfig {
   authorIdRange: number;
   bruteForce: boolean;
   passwordFile?: string;
+  maxAttempts: number;
   timeoutMs: number;
   retries: number;
   allowRemote: boolean;

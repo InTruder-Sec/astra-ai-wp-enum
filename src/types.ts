@@ -12,6 +12,7 @@ export interface ReconResult {
   target: string;
   isWordPress: boolean;
   wpVersion?: string;
+  siteTitle?: string;
   permalinks: "pretty" | "plain" | "unknown";
   signals: {
     restUsers: SignalState;

@@ -16,7 +16,8 @@ program
   .option("--author-range <n>", "highest author id to probe", "10")
   .option("--timeout <ms>", "per-request timeout in milliseconds", "10000")
   .option("--retries <n>", "network retry attempts", "2")
-  .option("--password-file <path>", "custom password list for brute-force")
+  .option("--password-file <path>", "custom password list for brute-force (overrides rockyou)")
+  .option("--max-attempts <n>", "max brute-force password attempts", "40")
   .option("--provider <provider>", "force AI provider: openai | anthropic")
   .option("--allow-remote", "allow non-local targets (authorized use only)", false)
   .option("-v, --verbose", "verbose output", false)
@@ -46,6 +47,7 @@ async function main(): Promise<void> {
     authorIdRange: parsePositiveInt(opts.authorRange, 10),
     bruteForce: Boolean(opts.brute),
     passwordFile: opts.passwordFile,
+    maxAttempts: parsePositiveInt(opts.maxAttempts, 40),
     timeoutMs: parsePositiveInt(opts.timeout, 10000),
     retries: parsePositiveInt(opts.retries, 2),
     allowRemote: Boolean(opts.allowRemote),

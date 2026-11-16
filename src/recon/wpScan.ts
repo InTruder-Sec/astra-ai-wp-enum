@@ -12,6 +12,7 @@ export async function runRecon(http: HttpClient, target: string): Promise<ReconR
     /\/wp-json\//i.test(homeBody);
 
   let wpVersion = extractVersion(homeBody);
+  const siteTitle = extractTitle(homeBody);
 
   const readme = await http.get(`${target}/readme.html`);
   if (readme.status === 200 && /WordPress/i.test(readme.body)) {
@@ -87,6 +88,7 @@ export async function runRecon(http: HttpClient, target: string): Promise<ReconR
     target,
     isWordPress,
     wpVersion,
+    siteTitle,
     permalinks,
     signals: { restUsers, xmlrpc, userSitemap, oembed },
     findings,
@@ -96,6 +98,12 @@ export async function runRecon(http: HttpClient, target: string): Promise<ReconR
 function extractVersion(html: string): string | undefined {
   const m = html.match(/<meta name="generator" content="WordPress\s+([0-9.]+)/i);
   return m ? m[1] : undefined;
+}
+
+function extractTitle(html: string): string | undefined {
+  const m = html.match(/<title[^>]*>([^<]+)<\/title>/i);
+  if (!m || !m[1]) return undefined;
+  return m[1].replace(/\s+/g, " ").trim().slice(0, 120) || undefined;
 }
 
 async function probeRestUsers(http: HttpClient, target: string): Promise<SignalState> {
